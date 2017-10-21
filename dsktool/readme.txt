@@ -177,6 +177,6 @@ to understand the source code, send a e-mail to:
 Tony Cruise
 
         Github for latest version:
-        https://github.com/nataliapc/MSX_devs/dsktool
+        https://github.com/nataliapc/MSX_devs
 
 NataliaPC (@ishwin74)

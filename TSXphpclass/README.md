@@ -1,6 +1,6 @@
 # TSXphpclass
 
-PHP class to read/write/manage _TSX_ and _TZX_ files. By NataliaPC (@ishwin74).
+PHP class to read/write/manage _TSX_ and _TZX_ files.
 
 ```php
   include_once "tsx.php";
@@ -16,3 +16,5 @@ PHP class to read/write/manage _TSX_ and _TZX_ files. By NataliaPC (@ishwin74).
   
   $tsx->saveToFile("MYGAME.TSX");
 ```
+
+By NataliaPC (@ishwin74).

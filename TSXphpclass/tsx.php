@@ -1061,6 +1061,7 @@ class Block32 extends BlockTSX
 	}
 	public function archive($idx, $value=NULL)
 	{
+		$idx = strval($idx);
 		if ($value===NULL) {
 			return isset($this->archive[$idx]) ? $this->archive[$idx] : "";
 		} else {
@@ -1243,6 +1244,21 @@ class Block4B extends BlockTSX
 		$info = parent::getInfo();
 		$info['description'] = 'MSX standard block';
 		$info['bytesLength'] = strlen($data);
+		if (strlen($data)==16) {
+			$first10 = substr($data, 0, 10);
+			if ($first10==str_repeat(chr(0xD3), 10)) {
+				$info['header'] = 'BASIC';
+			} else
+			if ($first10==str_repeat(chr(0xEA), 10)) {
+				$info['header'] = 'ASCII';
+			} else
+			if ($first10==str_repeat(chr(0xD0), 10)) {
+				$info['header'] = 'Binary';
+			}
+			if (isset($info['header'])) {
+				$info['name'] = substr($data, 10);
+			}
+		}
 		$info['crc32'] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);

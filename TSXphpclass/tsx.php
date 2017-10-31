@@ -3,7 +3,7 @@
 // ============================================================================================
 // TSX (TZX 1.21 Implementation) class
 //
-// (2017.10.21) v1.0
+// (2017.10.21) v1.0 First version
 //
 class TSX
 {
@@ -107,14 +107,14 @@ class TSX
 		return count($this->blocks);
 	}
 
-	public function getBlockId($index)
+	public function getBlockId($pos)
 	{
-		return $this->blocks[$index]->getId();
+		return $this->blocks[$pos]->getId();
 	}
 
-	public function getBlock($index)
+	public function getBlock($pos)
 	{
-		return $this->blocks[$index];
+		return $this->blocks[$pos];
 	}
 
 	public function getLastBlock()

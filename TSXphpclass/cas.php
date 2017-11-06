@@ -5,13 +5,13 @@
 //
 // (2017.10.31) v1.0 First version
 //
+const MSX_ASCII_HEADER  = "\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA";
+const MSX_BIN_HEADER    = "\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0";
+const MSX_BASIC_HEADER  = "\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3";
+
 class CAS
 {
-
 	private $HEADER = "\x1F\xA6\xDE\xBA\xCC\x13\x7D\x74";
-	private $ASCII  = "\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA";
-	private $BIN    = "\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0";
-	private $BASIC  = "\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3";
 
 	private $blocks = array();
 
@@ -39,7 +39,7 @@ class CAS
 				$bytes = substr($bytes, 8);
 				$type = substr($bytes, 0, 10);
 
-				$b = new CASBlock();
+				$b = new BlockCAS();
 				$tmp = "";
 				while (strlen($bytes)>0 && substr($bytes, 0, 8)!==$this->HEADER) {
 					$tmp .= substr($bytes, 0, 8);
@@ -130,12 +130,8 @@ class CAS
 	}
 }
 
-class CASBlock
+class BlockCAS
 {
-	private $ASCII  = "\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA";
-	private $BIN    = "\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0";
-	private $BASIC  = "\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3";
-
 	private $header;
 	private $data;
 
@@ -155,6 +151,21 @@ class CASBlock
 		$info['md5'] = md5($this->data);
 		$info['sha1'] = sha1($this->data);
 		return $info;
+	}
+
+	public function isASCIIHeader()
+	{
+		return strlen($this->data)==16 && substr_compare($this->data, MSX_ASCII_HEADER, 10)===0;
+	}
+
+	public function isBinaryHeader()
+	{
+		return strlen($this->data)==16 && substr_compare($this->data, MSX_BIN_HEADER, 10)===0;
+	}
+
+	public function isBasicHeader()
+	{
+		return strlen($this->data)==16 && substr_compare($this->data, MSX_BASIC_HEADER, 10)===0;
 	}
 }
 	

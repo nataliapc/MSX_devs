@@ -19,6 +19,11 @@
 		echo "Block ".($i+1).": ".strlen($bcas->data())." bytes"."\n";
 		
 		$btsx = new Block4B();
+		if ($bcas->isASCIIHeader() || $bcas->isBinaryHeader() || $bcas->isBasicHeader()) {
+			$btsx->pilotPulses(30720);
+		} else {
+			$btsx->pilotPulses(7680);
+		}
 		$btsx->pause(1000);
 		$btsx->data($bcas->data());
 		$tsx->addBlock($btsx);

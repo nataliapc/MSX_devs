@@ -3,12 +3,16 @@
 This folder contains:
   * **tsx.php**: PHP class to read/write/manage _TSX_ and _TZX_ files.
   * **cas.php**: PHP class to read/write/manage _CAS_ files.
+  * **uef.php**: PHP class to read/write/manage _UEF_ files.
   * **cas2tsx.php**: PHP program to convert _CAS_ files to _TSX_ format.
+  * **uef2tsx.php**: PHP program to convert _UEF_ files to _TSX_ format (Experimental). 
 
 
-## Program **cas2tsx.php** syntax:
+## Tools syntax:
 ```
 $> php cas2tsx.php <filename.CAS> <filename.TSX>
+
+$> php uef2tsx.php <filename.CAS> <filename.TSX>
 ```
 
 ## Example **tsx.php** use:

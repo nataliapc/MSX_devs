@@ -319,7 +319,7 @@ class Block10 extends BlockTSX
 		if ($value===NULL) {
 			return $this->pause;
 		} else {
-			$this->pause = int_val($value) & 0xFFFF;
+			$this->pause = intval($value) & 0xFFFF;
 			$this->pack();
 		}
 	}
@@ -426,7 +426,7 @@ class Block11 extends BlockTSX
 		if ($value===NULL) {
 			return $this->pilotLen;
 		} else {
-			$this->pilotLen = int_val($value) & 0xFFFF;
+			$this->pilotLen = intval($value) & 0xFFFF;
 			$this->pack();
 		}
 	}
@@ -434,7 +434,7 @@ class Block11 extends BlockTSX
 		if ($value===NULL) {
 			return $this->syncLen1;
 		} else {
-			$this->syncLen1 = int_val($value) & 0xFFFF;
+			$this->syncLen1 = intval($value) & 0xFFFF;
 			$this->pack();
 		}
 	}
@@ -442,7 +442,7 @@ class Block11 extends BlockTSX
 		if ($value===NULL) {
 			return $this->syncLen2;
 		} else {
-			$this->syncLen2 = int_val($value) & 0xFFFF;
+			$this->syncLen2 = intval($value) & 0xFFFF;
 			$this->pack();
 		}
 	}
@@ -450,7 +450,7 @@ class Block11 extends BlockTSX
 		if ($value===NULL) {
 			return $this->zeroLen;
 		} else {
-			$this->zeroLen = int_val($value) & 0xFFFF;
+			$this->zeroLen = intval($value) & 0xFFFF;
 			$this->pack();
 		}
 	}
@@ -458,7 +458,7 @@ class Block11 extends BlockTSX
 		if ($value===NULL) {
 			return $this->oneLen;
 		} else {
-			$this->oneLen = int_val($value) & 0xFFFF;
+			$this->oneLen = intval($value) & 0xFFFF;
 			$this->pack();
 		}
 	}
@@ -466,7 +466,7 @@ class Block11 extends BlockTSX
 		if ($value===NULL) {
 			return $this->pilotPulses;
 		} else {
-			$this->pilotPulses = int_val($value) & 0xFFFF;
+			$this->pilotPulses = intval($value) & 0xFFFF;
 			$this->pack();
 		}
 	}
@@ -474,7 +474,7 @@ class Block11 extends BlockTSX
 		if ($value===NULL) {
 			return $this->lastBits;
 		} else {
-			$this->lastBits = int_val($value) & 0xFF;
+			$this->lastBits = intval($value) & 0xFF;
 			$this->pack();
 		}
 	}
@@ -482,7 +482,7 @@ class Block11 extends BlockTSX
 		if ($value===NULL) {
 			return $this->pause;
 		} else {
-			$this->pause = int_val($value) & 0xFFFF;
+			$this->pause = intval($value) & 0xFFFF;
 			$this->pack();
 		}
 	}
@@ -551,7 +551,7 @@ class Block12 extends BlockTSX
 		if ($value===NULL) {
 			return $this->pulseLen;
 		} else {
-			$this->pulseLen = int_val($value) & 0xFFFF;
+			$this->pulseLen = intval($value) & 0xFFFF;
 			$this->pack();
 		}
 	}
@@ -559,7 +559,7 @@ class Block12 extends BlockTSX
 		if ($value===NULL) {
 			return $this->pulseNum;
 		} else {
-			$this->pulseNum = int_val($value) & 0xFFFF;
+			$this->pulseNum = intval($value) & 0xFFFF;
 			$this->pack();
 		}
 	}

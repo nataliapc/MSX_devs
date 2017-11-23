@@ -4,7 +4,7 @@ MSX develops repository
 ## TSX devs
 
   * **TZXDuino_TSX**: TZXDuino 1.8.1 firmware supporting _TSX_ files (using new 0x4B MSX/KCS block). Based in _Andrew Beer_ (TZXDuino), _Duncan Edwards_ (TZXDuino) and _Francisco Javier Crespo_ (4B Block) work.
-  * **TSXphpclass**: PHP class to read/write/manage _TSX_ and _TZX_ files. By NataliaPC (@ishwin74)
+  * **TSXphpclass**: PHP classes to read/write/manage _TSX_ and _TZX_ files. Also read of _CAS_ and _UEF_ files, and example tools of how to convert these files to _TSX_ format. By NataliaPC (@ishwin74)
   
 ## Tools
   

@@ -16,4 +16,5 @@ MSX develops repository
 If you've found useful this code please consider a donation:
 
 ![Donation address](http://www.eslamejor.com/Bitcoin_Address_Donaciones.png)
-bitcoin:1DaY35yWGPRneTK9cUuyvgYcHM9GCGa4Ag
+
+bitcon: 1DaY35yWGPRneTK9cUuyvgYcHM9GCGa4Ag

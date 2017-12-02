@@ -24,6 +24,21 @@
 				$btsx = new Block30();
 				$btsx->text(rtrim($bin->getData()));
 				break;
+			case 0x0001:
+				$btsx = new Block35();
+				$btsx->key("GAME.MANUAL");
+				$btsx->text(rtrim($bin->getData()));
+				break;
+			case 0x0005:
+				$btsx = new Block35();
+				$btsx->key("TARGET.MACHINE");
+				$btsx->text($bin->getTargetMachine());
+				$tsx->addBlock($btsx);
+				//2nd block
+				$btsx = new Block35();
+				$btsx->key("TARGET.KEYBOARD");
+				$btsx->text($bin->getTargetKeyboard());
+				break;
 			case 0x0100:
 				$btsx = new Block4B();
 				$btsx->pause(0);
@@ -47,7 +62,6 @@
 				$btsx->pulseNum($bin->cycles() * 2);
 				break;
 			case 0x0111:
-				echo " -> Experimental conversion...\n";
 				$btsx = new Block4B();
 				$btsx->pause(0);
 				$btsx->pilotLen(729);	//depends of current UEF baudRate
@@ -71,7 +85,6 @@
 				$in->setBaudRate($bin->frequency());
 				break;
 			case 0x0114:
-				echo " -> Experimental conversion...\n";
 				$btsx = new Block12();
 				$btsx->pulseLen(729);	//depends of current UEF baudRate
 				$pulses = $bin->cycles() * 2;
@@ -82,6 +95,10 @@
 			case 0x0116:
 				$btsx = new Block20();
 				$btsx->pause(intval($bin->pause()*1000));
+				break;
+			case 0x0120:
+				$btsx = new Block30();
+				$btsx->text(rtrim($bin->getData()));
 				break;
 		}
 		if ($btsx!==NULL) {

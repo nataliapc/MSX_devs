@@ -54,16 +54,13 @@ class UEF
 				$b = NULL;
 				list($id, $len) = array_values(unpack("vid/Vlen", $bytes));
 				$bdata = substr($bytes, 0, $len+6);
-				/*
-					&00xx set - Content information
-					&01xx set - Tape chunks
-					&02xx set - Disc chunks
-					&03xx set - ROM chunks
-					&04xx set - State snapshots
-					&FFxx set - reserved / non-emulator portable
-				*/
+
 				switch ($id) {
+					//&00xx set - Content information
 					case 0x0000: $b = new BlockUEF_0000($bytes); break;
+					case 0x0001: $b = new BlockUEF_0001($bytes); break;
+					case 0x0005: $b = new BlockUEF_0005($bytes); break;
+					//&01xx set - Tape chunks
 					case 0x0100: $b = new BlockUEF_0100($bytes); break;
 					case 0x0110: $b = new BlockUEF_0110($bytes); break;
 					case 0x0111: $b = new BlockUEF_0111($bytes); break;
@@ -71,6 +68,11 @@ class UEF
 					case 0x0113: $b = new BlockUEF_0113($bytes); break;
 					case 0x0114: $b = new BlockUEF_0114($bytes); break;
 					case 0x0116: $b = new BlockUEF_0116($bytes); break;
+					case 0x0120: $b = new BlockUEF_0120($bytes); break;
+					//&02xx set - Disc chunks
+					//&03xx set - ROM chunks
+					//&04xx set - State snapshots
+					//&FFxx set - reserved / non-emulator portable
 					default:   echo "Block #".dechex($id)." UNKNOWN!!\n";
 							   $bytes = substr($bytes, $len+6);
 							   break;
@@ -319,8 +321,8 @@ class BlockUEF_0000 extends BlockUEF
 		if ($value===NULL) {
 			return $this->getData();
 		} else {
-			$this->bytes = substr($this->bytes, 0, $this->headSize) . substr($value, 0xFFFF);
-			$this->len = strlen($value) + 6;
+			$this->bytes = substr($this->bytes, 0, $this->headSize).substr($value, 0, 0xFFFF)."\0";
+			$this->len = strlen($value) + 1;
 			$this->pack();
 		}
 	}
@@ -329,14 +331,127 @@ class BlockUEF_0000 extends BlockUEF
 // ============================================================================================
 // Chunk &0001 - game instructions / manual or URL 
 //
+// In URL case the first five characters should be "URL: " ("URL:" followed by a single space) followed by the URL.
+//
+class BlockUEF_0001 extends BlockUEF_0000
+{
+	public function __construct($bytes = NULL)
+	{
+		$this->id = 0x0001;
+		if ($bytes!==NULL) {
+			$this->unpack($bytes);
+			$this->bytes = substr($bytes, 0, $this->len + 6);
+		} else {
+			$this->pack();
+		}
+	}
+
+	public function getInfo() {
+		$data = $this->getData();
+		$info = parent::getInfo();
+		$info['description'] = 'Game instructions/manual/URL chunk';
+		$info['label'] = rtrim($data);
+		return $info;
+	}
+}
 
 // ============================================================================================
 // Chunk &0003 - inlay scan 
 //
 
 // ============================================================================================
-// Chunk &0005 - target machine chunk 
+// Chunk &0005 - target machine chunk
 //
+// This chunk is exactly 1 byte long. In that byte, the most significant nibble holds one of
+// the following values:
+//   0 - this file is aimed at a BBC Model A
+//   1 - this file is aimed at an Electron
+//   2 - this file is aimed at a BBC Model B
+//   3 - this file is aimed at a BBC Master
+//   4 - this file is aimed at an Atom
+//
+// The least significant nibble holds one of the following values:
+//   0 - this file will work well with any keyboard layout, or a layout preference is not specified
+//   1 - this file will work best if all keys are left in the same places relative to each other as
+//       on the emulated machine (e.g. the IBM PC key physically above '/' produces ':' as per the
+//       original hardware, even though it has a ' on it on UK keyboards)
+//   2 - this file will work best with a keyboard mapped as per the emulating computer's (e.g. on a
+//       UK keyboard pressing shift+0 on a keyboard will produce ')', rather than '@' as on a BBC
+//       or Electron)
+//
+class BlockUEF_0005 extends BlockUEF
+{
+	protected $pattern = "vid/Vlen/Ctarget";
+	protected $pattern2 = "vVC";
+	protected $headSize = 7;
+	
+	protected $target = 0;
+
+	public function __construct($bytes = NULL)
+	{
+		$this->id = 0x0005;
+		if ($bytes!==NULL) {
+			$this->unpack($bytes);
+			$this->bytes = substr($bytes, 0, $this->len + 6);
+		} else {
+			$this->pack();
+		}
+	}
+
+	protected function unpack($bytes = NULL)
+	{
+		if ($bytes===NULL) $bytes = $this->bytes;
+		list($this->id, 
+			$this->len,
+			$this->target) = array_values(unpack($this->pattern, $bytes));
+	}
+
+	protected function pack()
+	{
+		$this->bytes = pack($this->pattern2, 
+			$this->id, 
+			$this->len,
+			$this->target).$this->getData();
+		return $this->bytes;
+	}
+
+	public function getInfo() {
+		$data = $this->getData();
+		$info = parent::getInfo();
+		$info['description'] = 'Target machine chunk';
+		$info['machine'] = $this->getTargetMachine();
+		$info['keyboard'] = $this->getTargetKeyboard();
+		return $info;
+	}
+
+	public function target($value=NULL) {
+		if ($value===NULL) {
+			return $this->target;
+		} else {
+			$this->target = $value;
+			$this->pack();
+		}
+	}
+	public function getTargetMachine() {
+		switch ($this->target & 0xf0) {
+			case 0x00: return "BBC Model A";
+			case 0x10: return "Electron";
+			case 0x20: return "BBC Model B";
+			case 0x30: return "BBC Master";
+			case 0x40: return "Atom";
+		}
+		return "Unknown";
+	}
+	public function getTargetKeyboard() {
+		switch ($this->target & 0x0f) {
+			case 0x00: return "No preference";
+			case 0x01: return "Keyboard original";
+			case 0x02: return "Keyboard mapped";
+		}
+		return "Unknown";
+	}
+}
+
 
 // ============================================================================================
 // Chunk &0006 - bit multiplexing information 
@@ -365,6 +480,7 @@ class BlockUEF_0000 extends BlockUEF
 // 	- Start bit (#0)
 // 	- Byte LSB format
 // 	- Stop bit (#1)
+//
 class BlockUEF_0100 extends BlockUEF
 {
 	protected $pattern = "vid/Vlen";
@@ -440,7 +556,8 @@ class BlockUEF_0100 extends BlockUEF
 // Chunk &0110 - carrier tone (previously referred to as 'high tone') 
 //
 // A run of carrier tone (i.e. cycles with a frequency of twice the base frequency), with a
-// running length described in cycles by the first two bytes. 
+// running length described in cycles by the first two bytes.
+//
 class BlockUEF_0110 extends BlockUEF
 {
 	protected $pattern = "vid/Vlen/vcycles";
@@ -502,6 +619,7 @@ class BlockUEF_0110 extends BlockUEF
 // This four byte chunk is composed of two sets of two bytes - the first two describe the
 // number of cycles in the tone before the dummy byte, and the second two describe the number
 // of cycles in the tone after the dummy byte. The dummy byte always has value &AA.
+//
 class BlockUEF_0111 extends BlockUEF
 {
 	protected $pattern = "vid/Vlen/vpilot1/vpilot2";
@@ -573,6 +691,7 @@ class BlockUEF_0111 extends BlockUEF
 // A gap in the tape - a length of time for which no sound is on the source audio casette.
 // This chunk holds a two byte rest length counted relative to the base frequency. A value 
 // of n indicates a gap of 1/(2n*base frequency) seconds.
+//
 class BlockUEF_0112 extends BlockUEF
 {
 	protected $pattern = "vid/Vlen/vpause";
@@ -630,6 +749,7 @@ class BlockUEF_0112 extends BlockUEF
 // Chunk &0116 - floating point gap 
 //
 // As per 0112, but the gap length is a floating point number measured in seconds.
+//
 class BlockUEF_0116 extends BlockUEF
 {
 	protected $pattern = "vid/Vlen/A4pause";
@@ -688,7 +808,8 @@ class BlockUEF_0116 extends BlockUEF
 //
 // The base frequency is a modal value, which is assumed to be 1200Hz when a UEF is open.
 // If this chunk is encountered, the base frequency changes.
-// This chunks contains a single floating point number, stating the new base frequency. 
+// This chunks contains a single floating point number, stating the new base frequency.
+//
 class BlockUEF_0113 extends BlockUEF
 {
 	protected $pattern = "vid/Vlen/A4freq";
@@ -749,6 +870,7 @@ class BlockUEF_0113 extends BlockUEF
 // feature. Rarely they are at the end of a run of carrier tone. They consist of cycles of the
 // base frequency and twice the base frequency and sometimes have a leading and/or trailing
 // pulse.
+//
 class BlockUEF_0114 extends BlockUEF
 {
 	protected $pattern = "vid/Vlen/vcycles16/Ccycles8/Cfirst/Clast";
@@ -843,6 +965,30 @@ class BlockUEF_0114 extends BlockUEF
 // ============================================================================================
 // Chunk &0120 - position marker
 //
+// This chunk contains a string offering a textual description of the significance of the
+// location it sits at within the file purely for the benefit of human beings.
+//
+class BlockUEF_0120 extends BlockUEF_0000
+{
+	public function __construct($bytes = NULL)
+	{
+		$this->id = 0x0120;
+		if ($bytes!==NULL) {
+			$this->unpack($bytes);
+			$this->bytes = substr($bytes, 0, $this->len + 6);
+		} else {
+			$this->pack();
+		}
+	}
+
+	public function getInfo() {
+		$data = $this->getData();
+		$info = parent::getInfo();
+		$info['description'] = 'Position marker chunk';
+		$info['label'] = rtrim($data);
+		return $info;
+	}
+}
 
 // ============================================================================================
 // Chunk &0130 - tape set info

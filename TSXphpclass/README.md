@@ -32,3 +32,11 @@ $> php uef2tsx.php <filename.CAS> <filename.TSX>
 ```
 
 By NataliaPC (@ishwin74).
+
+## Donations
+
+If you've found useful this code please consider a donation:
+
+![Donation address](http://www.eslamejor.com/Bitcoin_Address_Donaciones.png)
+
+bitcon:1DaY35yWGPRneTK9cUuyvgYcHM9GCGa4Ag

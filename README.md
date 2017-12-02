@@ -10,3 +10,10 @@ MSX develops repository
   
   * **dsktool**: commandline tool to manage MSX DSK image files. Supports FAT12 and ADVH filesystem. Based in _Ricardo Bittencourt_ and _Tony Cruise_ work.
   
+
+## Donations
+
+If you've found useful this code please consider a donation:
+
+![Donation address](http://www.eslamejor.com/Bitcoin_Address_Donaciones.png)
+bitcoin:1DaY35yWGPRneTK9cUuyvgYcHM9GCGa4Ag

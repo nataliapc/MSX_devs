@@ -304,6 +304,14 @@ class Block10 extends BlockTSX
 		return $this->bytes;
 	}
 
+	protected function getChecksum($data) {
+		$checksum = 255;
+		for ($i=0; $i<strlen($data); $i++) {
+			$checksum ^= ord($data[$i]);
+		}
+		return $checksum;
+	}
+
 	public function getInfo() {
 		$data = $this->getData();
 		$info = parent::getInfo();
@@ -326,11 +334,12 @@ class Block10 extends BlockTSX
 	public function len() {
 		return $this->len;
 	}
-	public function data($value=NULL) {
+	public function data($value=NULL, $addFlagAndChecksun=TRUE) {
 		if ($value===NULL) {
 			return $this->getData();
 		} else {
-			$this->bytes = substr($this->bytes, 0, $this->headSize) . substr($value, 0xFFFF);
+			$value = chr(0xFF).$value.chr($this->getChecksum($value));
+			$this->bytes = substr($this->bytes, 0, $this->headSize) . substr($value, 0, 0xFFFF);
 			$this->len = strlen($value) & 0xFFFF;
 			$this->pack();
 		}

@@ -1251,7 +1251,10 @@ class Block4B extends BlockTSX
 	public function getInfo() {
 		$data = $this->getData();
 		$info = parent::getInfo();
-		$info['description'] = 'MSX standard block';
+		if ($this->bitCfg==0x24 && $this->byteCfg==0x54)
+			$info['description'] = 'MSX standard block';
+		else
+			$info['description'] = 'KCS custom block';
 		$info['bytesLength'] = strlen($data);
 		if (strlen($data)==16) {
 			$first10 = substr($data, 0, 10);

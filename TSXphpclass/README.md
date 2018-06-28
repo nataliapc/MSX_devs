@@ -5,14 +5,17 @@ This folder contains:
   * **cas.php**: PHP class to read/write/manage _CAS_ files.
   * **uef.php**: PHP class to read/write/manage _UEF_ files.
   * **cas2tsx.php**: PHP program to convert _CAS_ files to _TSX_ format.
-  * **uef2tsx.php**: PHP program to convert _UEF_ files to _TSX_ format (Experimental). 
+  * **svi2tsx.php**: PHP program to convert _SVI CAS_ files to _TSX_ format.
+  * **uef2tsx.php**: PHP program to convert _UEF_ files to _TSX_ format (Experimental).
 
 
 ## Tools syntax:
 ```
 $> php cas2tsx.php <filename.CAS> <filename.TSX>
 
-$> php uef2tsx.php <filename.CAS> <filename.TSX>
+$> php svi2tsx.php <filename.CAS> <filename.TSX>
+
+$> php uef2tsx.php <filename.UEF> <filename.TSX>
 ```
 
 ## Example **tsx.php** use:

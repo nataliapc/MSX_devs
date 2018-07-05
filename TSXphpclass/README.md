@@ -2,10 +2,11 @@
 
 This folder contains:
   * **tsx.php**: PHP class to read/write/manage _TSX_ and _TZX_ files.
-  * **cas.php**: PHP class to read/write/manage _CAS_ files.
+  * **cas.php**: PHP class to read/write/manage _MSX CAS_ files.
   * **uef.php**: PHP class to read/write/manage _UEF_ files.
-  * **cas2tsx.php**: PHP program to convert _CAS_ files to _TSX_ format.
+  * **cas2tsx.php**: PHP program to convert _MSX CAS_ files to _TSX_ format.
   * **svi2tsx.php**: PHP program to convert _SVI CAS_ files to _TSX_ format.
+  * **drg2tsx.php**: PHP program to convert _DRAGON/CoCo CAS_ files to _TSX_ format.
   * **uef2tsx.php**: PHP program to convert _UEF_ files to _TSX_ format (Experimental).
 
 
@@ -14,6 +15,8 @@ This folder contains:
 $> php cas2tsx.php <filename.CAS> <filename.TSX>
 
 $> php svi2tsx.php <filename.CAS> <filename.TSX>
+
+$> php drg2tsx.php <filename.CAS> <filename.TSX>
 
 $> php uef2tsx.php <filename.UEF> <filename.TSX>
 ```

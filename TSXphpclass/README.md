@@ -40,15 +40,14 @@ $> php uef2tsx.php <filename.UEF> <filename.TSX>
 ## Example **pzx.php** use:
 ```
   $pzx = new PZX();
+  
   //Create & Add MSX estandar pilot
   $pzx->addBlock(PZX::createBlock_MSX_Pilot());
+  
   //Create & Add MSX Data block 
   $b = PZX::createBlock_MSX();
   $b->data("Data Test...");
   $pzx->addBlock($b);
-
-  $b = $pzx->getBlockAt(0);
-  $b->replaceInfo('Price','nose');
 ```
 
 By NataliaPC (@ishwin74).

@@ -2,6 +2,7 @@
 
 This folder contains:
   * **tsx.php**: PHP class to read/write/manage _TSX_ and _TZX_ files.
+  * **pzx.php**: PHP class to read/write/manage _PZX_ files.
   * **cas.php**: PHP class to read/write/manage _MSX CAS_ files.
   * **uef.php**: PHP class to read/write/manage _UEF_ files.
   * **cas2tsx.php**: PHP program to convert _MSX CAS_ files to _TSX_ format.
@@ -35,6 +36,19 @@ $> php uef2tsx.php <filename.UEF> <filename.TSX>
   $info = $tsx->getInfo();
   
   $tsx->saveToFile("MYGAME.TSX");
+```
+## Example **pzx.php** use:
+```
+  $pzx = new PZX();
+  //Create & Add MSX estandar pilot
+  $pzx->addBlock(PZX::createBlock_MSX_Pilot());
+  //Create & Add MSX Data block 
+  $b = PZX::createBlock_MSX();
+  $b->data("Data Test...");
+  $pzx->addBlock($b);
+
+  $b = $pzx->getBlockAt(0);
+  $b->replaceInfo('Price','nose');
 ```
 
 By NataliaPC (@ishwin74).

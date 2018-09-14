@@ -1129,19 +1129,4 @@ class BlockPZX_XDAT extends BlockPZX
 
 }
 
-
-
-$pzx = new PZX('superscramble.pzx');
-
-$pzx->addBlock(PZX::createBlock_MSX_Pilot());
-
-$b = PZX::createBlock_MSX();
-$b->data("Prueba de Browse...");
-$pzx->addBlock($b);
-
-$b = $pzx->getBlockAt(0);
-$b->replaceInfo('Price','nose');
-
-print_r($pzx->getInfo());
-
 ?>

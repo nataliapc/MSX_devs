@@ -391,7 +391,7 @@ class PZX
 	//          0  13 1  2   pattern??  2538  1269,1269
 	//   'TI99' 00 0D 01 02 '01234567'  EA 09 F5 04 F5 04 ... data stream
 	//
-	public static function createBlock_Oric() {
+	public static function createBlock_TI99() {
 		$b = new BlockPZX_XDAT();
 		$b->system('TI99');
 		$b->flags(0b00000000);

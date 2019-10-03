@@ -37,7 +37,7 @@
 				$b->bit0Len(1458);			//Length ZERO pulses:1458 tstates(3.5Mhz) ~ 2400 Hz
 				$b->bit1Len(729);			//Length ONE pulses:729 tstates(3.5Mhz) ~ 4800 Hz
 				$b->bitCfg(0b00100010);		//ZERO pulses(0010):4  ONE pulses(0010):4
-				$b->byteCfg(0b00001001);	//LeadingBits:00 LeadingValue:0 TrailingBits:01 TrailingValue:0 Reserved:0 MSb(0:LSb 1:MSb)
+				$b->byteCfg(0b01000001);	//LeadingBits:01 LeadingValue:0 TrailingBits:00 TrailingValue:0 Reserved:0 MSb(0:LSb 1:MSb)
 				$b->data(substr($cas, $pini, $i-$pini));
 				//Insert the new data block
 				$tsx->addBlock($b);
@@ -56,7 +56,7 @@
 				$b->bit1Len(729);			//Length ONE pulses:729 tstates(3.5Mhz) ~ 4800 Hz
 				$b->bitCfg(0b00100010);		//ZERO pulses(0010):4  ONE pulses(0010):4
 				$b->byteCfg(0b00000001);	//LeadingBits:00 LeadingValue:0 TrailingBits:00 TrailingValue:0 Reserved:0 Msb(0:LSb 1:MSb)
-				$b->data(str_repeat(chr(0xAA), 199).chr(0xFF));
+				$b->data(str_repeat(chr(0x55), 199).chr(0x7F));
 				//Insert the new pilot block
 				$tsx->addBlock($b);
 

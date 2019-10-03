@@ -4,6 +4,7 @@
 // UEF class
 //
 // http://electrem.emuunlim.com/UEFSpecs.htm
+// http://beebwiki.mdfs.net/Acorn_cassette_format
 //
 // (2017.11.18) v1.0 First version
 //

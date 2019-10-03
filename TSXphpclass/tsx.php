@@ -1,4 +1,5 @@
 <?php
+include_once "msxcharsetjp.php";
 
 // ============================================================================================
 // TSX (TZX 1.21 Implementation) class
@@ -48,8 +49,9 @@ class TSX
 					case 0x11: $b = new Block11($bytes); break;
 					case 0x12: $b = new Block12($bytes); break;
 					case 0x13: $b = new Block13($bytes); break;
-					//case 0x14: $b = new Block14($bytes); break;
-					//case 0x15: $b = new Block15($bytes); break;
+					case 0x14: $b = new Block14($bytes); break;
+					case 0x15: $b = new Block15($bytes); break;
+					case 0x18: $b = new Block18($bytes); break;
 					//case 0x19: $b = new Block19($bytes); break;
 					case 0x20: $b = new Block20($bytes); break;
 					case 0x21: $b = new Block21($bytes); break;
@@ -69,7 +71,6 @@ class TSX
 					case 0x4B: $b = new Block4B($bytes); break;
 					case 0x5A: $b = new Block5A($bytes); break;
 					//NOT FULLY IMPLEMENTED
-					//case 0x18: $b = new Block18($bytes); break;
 					//case 0x2B: $b = new Block2B($bytes); break;
 					//DEPRECATED
 					//case 0x16: $b = new Block16($bytes); break;
@@ -175,7 +176,7 @@ class TSX
 		}
 		$info['labels'] = $labels;
 
-		//Data info (blocks: 10, 11, 14, ¿19?, 4B)
+		//Data info (blocks: 10, 11, 14, 15, 18, ¿19?, 4B)
 		$data = array();
 		$data['blocks'] = 0;
 		$tmp = "";
@@ -184,6 +185,8 @@ class TSX
 				case 0x10:
 				case 0x11:
 				case 0x14:
+				case 0x15:
+				case 0x18:
 				case 0x19:
 				case 0x4B:
 					$data['blocks']++;
@@ -643,6 +646,111 @@ class Block13 extends BlockTSX
 //	0x05	-	WORD		Pause after this block (ms.)
 //	0x07	N	BYTE[3] 	Length of data that follow
 //	0x0A	-	BYTE[N]		Data as in .TAP files
+class Block14 extends BlockTSX
+{
+	protected $pattern = "Cid/vlen0/vlen1/Clast/vpause/vlen16/Clen8";
+	protected $pattern2 = "CvvCvvC";
+	protected $headSize = 0x0B;
+	
+	protected $zeroLen = 855;
+	protected $oneLen = 1710;
+	protected $lastBits = 8;
+	protected $pause = 1000;
+	protected $len = 0;
+
+	public function __construct($bytes = NULL)
+	{
+		$this->id = 0x14;
+		if ($bytes!==NULL) {
+			$this->unpack($bytes);
+			$this->bytes = substr($bytes, 0, $this->headSize + $this->len);
+		} else {
+			$this->pack();
+		}
+	}
+
+	protected function unpack($bytes = NULL)
+	{
+		if ($bytes===NULL) $bytes = $this->bytes;
+		list($this->id, 
+			$this->zeroLen,
+			$this->oneLen,
+			$this->lastBits,
+			$this->pause, 
+			$len16, $len8) = array_values(unpack($this->pattern, $bytes));
+		$this->len = $len16 | ($len8 << 16);
+	}
+
+	protected function pack()
+	{
+		$len16 = $this->len & 0xFFFF;
+		$len8 = $this->len >> 16;
+		$this->bytes = pack($this->pattern2, 
+			$this->id, 
+			$this->zeroLen,
+			$this->oneLen,
+			$this->lastBits,
+			$this->pause, 
+			$len16, $len8).$this->getData();
+		return $this->bytes;
+	}
+
+	public function getInfo() {
+		$data = $this->getData();
+		$info = parent::getInfo();
+		$info['description'] = 'Pure data Block';
+		$info['bytesLength'] = strlen($data);
+		$info['crc32'] = hash("crc32b", $data);
+		$info['md5'] = md5($data);
+		$info['sha1'] = sha1($data);
+		return $info;
+	}
+
+	public function zeroLen($value=NULL) {
+		if ($value===NULL) {
+			return $this->zeroLen;
+		} else {
+			$this->zeroLen = intval($value) & 0xFFFF;
+			$this->pack();
+		}
+	}
+	public function oneLen($value=NULL) {
+		if ($value===NULL) {
+			return $this->oneLen;
+		} else {
+			$this->oneLen = intval($value) & 0xFFFF;
+			$this->pack();
+		}
+	}
+	public function lastBits($value=NULL) {
+		if ($value===NULL) {
+			return $this->lastBits;
+		} else {
+			$this->lastBits = intval($value) & 0xFF;
+			$this->pack();
+		}
+	}
+	public function pause($value=NULL) {
+		if ($value===NULL) {
+			return $this->pause;
+		} else {
+			$this->pause = intval($value) & 0xFFFF;
+			$this->pack();
+		}
+	}
+	public function len() {
+		return $this->len;
+	}
+	public function data($value=NULL) {
+		if ($value===NULL) {
+			return $this->getData();
+		} else {
+			$this->bytes = substr($this->bytes, 0, $this->headSize) . substr($value, 0, 0xFFFFFF);
+			$this->len = strlen($value) & 0xFFFFFF;
+			$this->pack();
+		}
+	}
+}
 
 // ============================================================================================
 // Block #15 - Direct recording block
@@ -653,6 +761,217 @@ class Block13 extends BlockTSX
 //	0x05	N	BYTE[3]		Length of samples' data
 //	0x08	-	BYTE[N]		Samples data. Each bit represents a state on the EAR port (i.e. one sample).
 //							MSb is played first.
+class Block15 extends BlockTSX
+{
+	protected $pattern = "Cid/vsamplelen/vpause/Clast/vlen16/Clen8";
+	protected $pattern2 = "CvvCvC";
+	protected $headSize = 0x09;
+	
+	protected $sampleLen = 73;	// ~ for 48.000Hz
+	protected $lastBits = 8;
+	protected $pause = 1000;
+	protected $len = 0;
+
+	public function __construct($bytes = NULL)
+	{
+		$this->id = 0x15;
+		if ($bytes!==NULL) {
+			$this->unpack($bytes);
+			$this->bytes = substr($bytes, 0, $this->headSize + $this->len);
+		} else {
+			$this->pack();
+		}
+	}
+
+	protected function unpack($bytes = NULL)
+	{
+		if ($bytes===NULL) $bytes = $this->bytes;
+		list($this->id, 
+			$this->sampleLen,
+			$this->pause, 
+			$this->lastBits,
+			$len16, $len8) = array_values(unpack($this->pattern, $bytes));
+		$this->len = $len16 | ($len8 << 16);
+	}
+
+	protected function pack()
+	{
+		$len16 = $this->len & 0xFFFF;
+		$len8 = $this->len >> 16;
+		$this->bytes = pack($this->pattern2, 
+			$this->id, 
+			$this->sampleLen,
+			$this->pause, 
+			$this->lastBits,
+			$len16, $len8).$this->getData();
+		return $this->bytes;
+	}
+
+	public function getInfo() {
+		$data = $this->getData();
+		$info = parent::getInfo();
+		$info['description'] = 'Direct Recording';
+		$info['tStatesPerSample'] = $this->sampleLen;
+		$info['bytesLength'] = strlen($data);
+		$info['crc32'] = hash("crc32b", $data);
+		$info['md5'] = md5($data);
+		$info['sha1'] = sha1($data);
+		return $info;
+	}
+
+	public function sampleLen($value=NULL) {
+		if ($value===NULL) {
+			return $this->sampleLen;
+		} else {
+			$this->sampleLen = intval($value) & 0xFFFF;
+			$this->pack();
+		}
+	}
+	public function lastBits($value=NULL) {
+		if ($value===NULL) {
+			return $this->lastBits;
+		} else {
+			$this->lastBits = intval($value) & 0xFF;
+			$this->pack();
+		}
+	}
+	public function pause($value=NULL) {
+		if ($value===NULL) {
+			return $this->pause;
+		} else {
+			$this->pause = intval($value) & 0xFFFF;
+			$this->pack();
+		}
+	}
+	public function len() {
+		return $this->len;
+	}
+	public function data($value=NULL) {
+		if ($value===NULL) {
+			return $this->getData();
+		} else {
+			$this->bytes = substr($this->bytes, 0, $this->headSize) . substr($value, 0, 0xFFFFFF);
+			$this->len = strlen($value) & 0xFFFFFF;
+			$this->pack();
+		}
+	}
+}
+
+// ============================================================================================
+// Block #18 - CSW recording block
+//	0x00	10+N	DWORD	Block length (without these four bytes)
+//	0x04	-		WORD	Pause after this block (in ms).
+//	0x06	-		BYTE[3]	Sampling rate
+//	0x09	-		BYTE	Compression type
+//								0x01: RLE
+//								0x02: Z-RLE
+//	0x0A	-		DWORD	Number of stored pulses (after decompression, for validation purposes)
+//	0x0E	-		BYTE[N]	CSW data, encoded according to the CSW file format specification.
+class Block18 extends BlockTSX
+{
+	protected $pattern = "Cid/Vblocklen/vpause/vsample16/Csample8/Ccompression/Vnumpulses";
+	protected $pattern2 = "CVvvCCV";
+	protected $headSize = 0x0F;
+	
+	protected $sampleRate = 48000;
+	protected $compression = 0x01;
+	protected $numPulses = 0;
+	protected $pause = 1000;
+	protected $blockLen = 10;
+
+	public function __construct($bytes = NULL)
+	{
+		$this->id = 0x18;
+		if ($bytes!==NULL) {
+			$this->unpack($bytes);
+			$this->bytes = substr($bytes, 0, 5 + $this->blockLen);
+		} else {
+			$this->pack();
+		}
+	}
+
+	protected function unpack($bytes = NULL)
+	{
+		if ($bytes===NULL) $bytes = $this->bytes;
+		list($this->id, 
+			$this->blockLen,
+			$this->pause, 
+			$sam16, $sam8,
+			$this->compression,
+			$this->numPulses) = array_values(unpack($this->pattern, $bytes));
+		$this->sampleRate = $sam16 | ($sam8 << 16);
+	}
+
+	protected function pack()
+	{
+		$sam16 = $this->sampleRate & 0xFFFF;
+		$sam8 = $this->sampleRate >> 16;
+		$this->bytes = pack($this->pattern2, 
+			$this->id, 
+			$this->blockLen,
+			$this->pause, 
+			$sam16, $sam8,
+			$this->compression,
+			$this->numPulses).$this->getData();
+		return $this->bytes;
+	}
+
+	public function getInfo() {
+		$data = $this->getData();
+		$info = parent::getInfo();
+		$info['description'] = 'Direct Recording';
+		$info['bytesLength'] = strlen($data);
+		$info['crc32'] = hash("crc32b", $data);
+		$info['md5'] = md5($data);
+		$info['sha1'] = sha1($data);
+		return $info;
+	}
+
+	public function sampleRate($value=NULL) {
+		if ($value===NULL) {
+			return $this->sampleRate;
+		} else {
+			$this->sampleRate = intval($value) & 0xFFFFFF;
+			$this->pack();
+		}
+	}
+	public function compression($value=NULL) {
+		if ($value===NULL) {
+			return $this->compression;
+		} else {
+			$this->compression = intval($value) & 0xFF;
+			$this->pack();
+		}
+	}
+	public function numPulses($value=NULL) {
+		if ($value===NULL) {
+			return $this->numPulses;
+		} else {
+			$this->numPulses = intval($value) & 0xFFFFFFFF;
+			$this->pack();
+		}
+	}
+	public function pause($value=NULL) {
+		if ($value===NULL) {
+			return $this->pause;
+		} else {
+			$this->pause = intval($value) & 0xFFFF;
+			$this->pack();
+		}
+	}
+	public function len() {
+		return strlen($this->getData());
+	}
+	public function data($value=NULL) {
+		if ($value===NULL) {
+			return $this->getData();
+		} else {
+			$this->bytes = substr($this->bytes, 0, $this->headSize) . substr($value, 0, 0xFFFFFFFF);
+			$this->blockLen = 5 + (strlen($value) & 0xFFFFFFFF);
+			$this->pack();
+		}
+	}
+}
 
 // ============================================================================================
 // Block #19 - Generalized data block
@@ -1249,9 +1568,10 @@ class Block4B extends BlockTSX
 	}
 
 	public function getInfo() {
+		global $MSXcharsetJP;
 		$data = $this->getData();
 		$info = parent::getInfo();
-		if ($this->bitCfg==0x24 && $this->byteCfg==0x54)
+		if ($this->bitCfg==0x24 && $this->byteCfg==0x54 && $this->pilotPulses>0)
 			$info['description'] = 'MSX standard block';
 		else
 			$info['description'] = 'KCS custom block';
@@ -1268,7 +1588,18 @@ class Block4B extends BlockTSX
 				$info['header'] = 'Binary';
 			}
 			if (isset($info['header'])) {
-				$info['name'] = substr($data, 10);
+				$cadIn = substr($data, 10);
+				$cadOut = '';
+				for ($i=0; $i<strlen($cadIn); $i++) {
+					$num = ord($cadIn[$i]);
+					if (isset($MSXcharsetJP[$num])) 
+						$cadOut .= $MSXcharsetJP[$num];
+					elseif ($num<32 || $num>=127)
+						$cadOut .= '?';
+					else
+						$cadOut .= chr($num);
+				}
+				$info['name'] = $cadOut;
 			}
 		}
 		$info['crc32'] = hash("crc32b", $data);
@@ -1393,9 +1724,6 @@ class Block5A extends BlockTSX
 
 
 // ============================================================================================
-// Block #18 - CSW recording block
-
-// ============================================================================================
 // Block #2B - Set signal level
 
 // ============================================================================================
@@ -1481,6 +1809,7 @@ class int_helper
 
 		return is_array($i) ? $i[1] : $i;
 	}
+
 }
-	
+
 ?>

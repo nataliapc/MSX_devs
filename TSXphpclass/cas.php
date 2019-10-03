@@ -5,13 +5,10 @@
 //
 // (2017.10.31) v1.0 First version
 //
-const MSX_ASCII_HEADER  = "\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA";
-const MSX_BIN_HEADER    = "\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0";
-const MSX_BASIC_HEADER  = "\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3";
 
 class CAS
 {
-	private $HEADER = "\x1F\xA6\xDE\xBA\xCC\x13\x7D\x74";
+	const HEADER = "\x1F\xA6\xDE\xBA\xCC\x13\x7D\x74";
 
 	private $blocks = array();
 
@@ -35,13 +32,13 @@ class CAS
 			$this->clear();
 
 			//Search for block headers
-			while (strlen($bytes)>0 && substr($bytes, 0, 8)===$this->HEADER) {
+			while (strlen($bytes)>0 && substr($bytes, 0, 8)===self::HEADER) {
 				$bytes = substr($bytes, 8);
 				$type = substr($bytes, 0, 10);
 
 				$b = new BlockCAS();
 				$tmp = "";
-				while (strlen($bytes)>0 && substr($bytes, 0, 8)!==$this->HEADER) {
+				while (strlen($bytes)>0 && substr($bytes, 0, 8)!==self::HEADER) {
 					$tmp .= substr($bytes, 0, 8);
 					$bytes = substr($bytes, 8);
 				}
@@ -62,7 +59,7 @@ class CAS
 	{
 		$bytes = "";
 		foreach ($this->blocks as $b) {
-			$bytes .= $this->HEADER . $b->data();
+			$bytes .= self::HEADER . $b->data();
 		}
 		return $bytes;
 	}
@@ -132,6 +129,10 @@ class CAS
 
 class BlockCAS
 {
+	const MSX_ASCII_HEADER  = "\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA";
+	const MSX_BIN_HEADER    = "\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0";
+	const MSX_BASIC_HEADER  = "\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3";
+
 	private $header;
 	private $data;
 
@@ -155,17 +156,17 @@ class BlockCAS
 
 	public function isASCIIHeader()
 	{
-		return strlen($this->data)==16 && substr_compare($this->data, MSX_ASCII_HEADER, 10)===0;
+		return strlen($this->data)==16 && substr_compare($this->data, self::MSX_ASCII_HEADER, 10)===0;
 	}
 
 	public function isBinaryHeader()
 	{
-		return strlen($this->data)==16 && substr_compare($this->data, MSX_BIN_HEADER, 10)===0;
+		return strlen($this->data)==16 && substr_compare($this->data, self::MSX_BIN_HEADER, 10)===0;
 	}
 
 	public function isBasicHeader()
 	{
-		return strlen($this->data)==16 && substr_compare($this->data, MSX_BASIC_HEADER, 10)===0;
+		return strlen($this->data)==16 && substr_compare($this->data, self::MSX_BASIC_HEADER, 10)===0;
 	}
 }
 	

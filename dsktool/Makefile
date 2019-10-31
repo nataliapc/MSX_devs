@@ -1,15 +1,17 @@
-CC=gcc
+CC=g++
 #CC=i686-w64-mingw32-g++
-#STATIC=-static
-CCFLAGS=$(STATIC) -Wall -O3
+#FLAGS32=-m32
+STATIC=-static -static-libgcc -static-libstdc++
+CCFLAGS=$(FLAGS32) $(STATIC) -Wall -O2 -fpermissive -Wunused-variable
 OUT=dsktool
+#OUT=dsktool.exe
 
 default: dsktool
 
 all: clean default
 
 dsktool.o: dsktool.c msxboot.h
-	$(CC) -c dsktool.c
+	$(CC) -c dsktool.c $(CCFLAGS)
 
 dsktool: dsktool.o
 	$(CC) dsktool.o -o $(OUT) $(CCFLAGS)

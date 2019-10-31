@@ -55,6 +55,7 @@ software!!)
 
         "command" is one of the four supported commands:
 
+        C n     create a new disk (where 'n' is 360, 720, 1440, 2880)
         I       show floppy boot sector info
         L[H]    list the contents of the archive
         E[H]    extract files from the archive
@@ -105,6 +106,10 @@ create a new archive and initialize the .DSK with a MSX-DOS 1 boot.
 
         DSKTOOL O BACKUP.DSK 307712
 
+3.8. Create a new disk
+
+        DSKTOOL C 720 NEWDISK.DSK
+
 ---------------------------------------------------------------------------
 
 4. Suggestions
@@ -125,6 +130,9 @@ Some suggestions are:
 
 5. What's new
 
+        [1.4]
+        - Added support to create/read 360Kb, 720Kb, 1440Kb and 2880Kb disks.
+        - Bug fixes
         [1.3]
         - ported to GCC Linux/MinGW
         - support to 180Kb and 360Kb (new images 720Kb only)

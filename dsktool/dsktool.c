@@ -26,6 +26,18 @@
 #define fat12odd_value(pos)		(((int)(fat[pos+2]))<<4)+(fat[pos+1]>>4)
 #define fat12even_value(pos)	((((int)(fat[pos+1]&0xF))<<8)+fat[pos])
 
+// MEDIA DESCRIPTOR TABLE
+// FAT-ID             F8   F9   FA   FB   FC   FD   FE   FF
+// Format code        891  892  881  882  491  492  481  482
+// Directory entries  112  112  112  112  64   112  64   112
+// Sectors / FAT      2    3    1    2    2    2    1    1
+// Sectors / track    9    9    8    8    9    9    8    8
+// Heads              1    2    1    2    1    2    1    2
+// Sectors / head     80   80   80   80   40   40   40   40
+// Sectors / cluster  2    2    2    2    1    2    1    2
+// Total sectors      720  1440 640  1280 360  720  320  640
+// Total clusters     360  720  320  640  360  360  320  320
+// Total Kbytes       360  720  320  640  180  360  160  320
 
 #pragma pack(push,1)
 
@@ -38,7 +50,7 @@ typedef struct {
 	uint8_t   numberOfFATs;			// 0x010 [1]  Number of File Allocation Tables (e.g. 2 0x02)
 	uint16_t  maxDirectoryEntries;	// 0x011 [2]  Maximum number of FAT12 or FAT16 root directory entries (e.g. 112 0x0070)
 	uint16_t  totalSectors;			// 0x013 [2]  Total logical sectors (e.g. 1440 0x05a0)
-	uint8_t   mediaDescriptor;		// 0x015 [1]  Media descriptor: 0xf9:3.5"720Kb | 0xf8:3.5"360Kb
+	uint8_t   mediaDescriptor;		// 0x015 [1]  Media descriptor: 0xf9:3.5"720Kb | 0xf8:3.5"360Kb (see previous table)
 	uint16_t  sectorsPerFAT;		// 0x016 [2]  Logical sectors per FAT (e.g. 3 0x0003)
 	uint16_t  sectorsPerTrack;		// 0x018 [2]  Physical sectors per track for disks with CHS geometry (e.g. 9 0x0009)
 	uint16_t  numberOfHeads;		// 0x01A [2]  Number of heads (e.g. 2 0x0002)
@@ -117,6 +129,7 @@ uint8_t    *cluster;
 uint32_t    disksize;
 uint32_t    fatelements;
 uint32_t    availsectors;
+uint32_t    bytespercluster;
 
 uint8_t     isADVH = 0;
 advhDirentry_t *rootADVH;
@@ -180,6 +193,7 @@ void load_dsk (char *name, uint8_t  onlybootfat, uint8_t  error) {
 		rewind(file);
 	}
 	disksize = bootsec->bytesPerSector * bootsec->totalSectors;
+	bytespercluster = bootsec->bytesPerSector*bootsec->sectorsPerCluster;
 
 	//Allocate memory for disk image
 	dskimage = (uint8_t *) malloc(disksize);
@@ -190,7 +204,7 @@ void load_dsk (char *name, uint8_t  onlybootfat, uint8_t  error) {
 	cluster = (uint8_t *)&(rootdir[bootsec->maxDirectoryEntries]);
 	availsectors = bootsec->totalSectors - bootsec->reservedSectors - bootsec->sectorsPerFAT * bootsec->numberOfFATs;
 	availsectors -= bootsec->maxDirectoryEntries * sizeof(direntry_t) / bootsec->bytesPerSector;
-	fatelements = availsectors / 2;
+	fatelements = availsectors / bootsec->sectorsPerCluster;
 
 	if (file==NULL) {
 		if (error==ERROR) {
@@ -343,7 +357,7 @@ uint32_t bytes_free (void) {
 	for (i=2; i<2+fatelements; i++) {
 		if (!next_link(i)) avail++;
 	}
-	return avail*1024;
+	return avail*bytespercluster;
 }
 
 // List the root directory of a DSK
@@ -483,7 +497,7 @@ void extract (fileinfo_t *file) {
 	uint16_t current;
 
 	printf ("extracting %s.%s\n",file->name,file->ext);
-	buffer = (uint8_t *) malloc ((file->size+1023)&(~1023));
+	buffer = (uint8_t *) malloc ((file->size+bytespercluster-1)&(~(bytespercluster-1)));
 	memset (buffer,0x1a,file->size);
 	if (file->ext[0]) 
 		sprintf (name,"%s.%s",file->name,file->ext);
@@ -493,8 +507,8 @@ void extract (fileinfo_t *file) {
 	current=file->first;
 	p=buffer;
 	do {
-		memcpy (p,cluster+(current-2)*1024,1024);
-		p+=1024;
+		memcpy (p,cluster+(current-2)*bytespercluster, bytespercluster);
+		p += bytespercluster;
 		current=next_link (current);
 	} while (current!=0xFFF);
 	fwrite (buffer, file->size, 1, fileid);
@@ -520,12 +534,11 @@ void extract_advh (fileinfo_t *file) {
 // Show file clusters info from the DSK
 void file_clusters_info (fileinfo_t *file) {
 	uint16_t current = file->first;
-	long bytespercluster = bootsec->bytesPerSector*bootsec->sectorsPerCluster;
 	long offset;
 
 	printf ("File info for %s.%s (%d bytes)\n", file->name, file->ext, file->size);
 	do {
-		offset = cluster-dskimage+current*bytespercluster;
+		offset = cluster-dskimage+(current-2)*bytespercluster;
 		printf("  Cluster: %04Xh (%d) | Diskfile Offset: %04lXh-%04lXh (%ld-%ld)\n", current, current, offset, offset+bytespercluster-1, offset, offset+bytespercluster-1);
 		current=next_link (current);
 	} while (current!=0xFFF);
@@ -652,7 +665,9 @@ void add_single_file(char *name, char *pathname) {
 	}
 
 	//Reading data file
-	buffer = buffaux = (uint8_t *) malloc((size+1023)&(~1023));
+	uint32_t bufsize = (size+bytespercluster-1)&(~(bytespercluster-1));
+	buffer = buffaux = (uint8_t *) malloc(bufsize);
+	memset(buffer, 0, bufsize);
 	read = fread (buffer, 1, size, fileid);
 	if (read != size) {
 		printf("ERROR reading file '%s'\n", name);
@@ -660,13 +675,13 @@ void add_single_file(char *name, char *pathname) {
 	}
 	fclose (fileid);
 
-	total=(size+1023)>>10;
+	total=(size+bytespercluster-1)/bytespercluster;
 	current=first=get_free ();
 
 	//Saving data to DSK clusters
 	for (i=0; i<total;) {
-		memcpy(cluster+(current-2)*1024, buffaux, 1024);
-		buffaux+=1024;
+		memcpy(cluster+(current-2)*bytespercluster, buffaux, bytespercluster);
+		buffaux+=bytespercluster;
 		if (++i==total)
 			next=0xFFF;
 		else

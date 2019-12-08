@@ -9,6 +9,7 @@ This folder contains:
   * **svi2tsx.php**: PHP program to convert _SVI CAS_ files to _TSX_ format.
   * **drg2tsx.php**: PHP program to convert _DRAGON/CoCo CAS_ files to _TSX_ format.
   * **uef2tsx.php**: PHP program to convert _UEF_ files to _TSX_ format (Experimental).
+  * **oric2tsx.php**: PHP program to convert _ORIC TAP_ files to _TSX_ format.
 
 
 ## Tools syntax:

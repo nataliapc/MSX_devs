@@ -1,6 +1,6 @@
 <?php
-	include_once "tsx.php";
-	include_once "cas.php";
+	require_once "tsx.php";
+	require_once "cas.php";
 
 	if ($argc<3) {
 		echo "\nSyntax:\n  php cas2tsx.php <filename.CAS> <filename.TSX>\n\n";

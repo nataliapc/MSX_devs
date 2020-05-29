@@ -1,13 +1,68 @@
 <?php
-include_once "msxcharsetjp.php";
+@include_once "msxcharsetjp.php";
+
+// ============================================================================================
+// Interface TSX Class
+
+interface ITSX
+{
+	public function clear();					// Initialize the TSX object
+	public function loadFromFile($filename);	// Initialize and load a TSX from file
+	public function saveToFile($filename);		// Save the current TSX to a file
+	public function getBytes();					// Obtain a raw binery string of the TSX
+	public function getNumBlocks();				// Get the blocks count
+	public function getBlockId($index);			// Get the ID from a Block at a position
+	public function getBlock($index);			// Get the Block at a position
+	public function getLastBlock();				// Get the last Block
+	public function getBlockPosById($id, $offset = 0);	// Get the first position of a block ID ocurrence
+	public function addBlock($newBlock);		// Add a block at the end of the TSX
+	public function insertBlock($index, $newBlock);	// Insert a block in a position of the TSX
+	public function deleteBlock($index);		// Deletes the block at a position
+	public function getInfo();					// Get an object with a full TSX/Blocks info
+}
+
+// ============================================================================================
+// Interface Generic Block
+
+interface IBlock
+{
+	public function getId();				// Get the block ID
+	public function getSize();				// Get the full block length (header included)
+	public function getHeadSize();			// Get the header size
+	public function getBytes();				// Get the full block data (header included)
+	public function getData();				// Get the raw data even in no-data blocks
+	public function getInfo();				// Get an object with info about the block
+}
+
+// ============================================================================================
+// Interface Generic Data Block
+// 
+// Add new functions to IBlock for specialized data blocks
+
+interface IBlockData extends IBlock
+{
+	public function pause($value=NULL);		// Get/Set pause in millis
+	public function len();					// Get/Set length of block data (without header)
+	public function data($value=NULL);		// Get/Set raw data
+}
 
 // ============================================================================================
 // TSX (TZX 1.21 Implementation) class
 //
 // (2017.10.21) v1.0 First version
+// (2020.05.24) v1.1 Revision. Interfaces added
 //
-class TSX
+class TSX implements ITSX
 {
+	const HEADER		= "ZXTape!\x1a\x01\x15";
+
+	const INFO_BLOCKS	= 'blocks';
+	const INFO_FILESIZE	= 'fileSize';
+	const INFO_CRC32	= 'crc32';
+	const INFO_MD5		= 'md5';
+	const INFO_SHA1		= 'sha1';
+	const INFO_FILE		= 'file';
+
 	private $majorVer;
 	private $minorVer;
 	private $blocks = array();
@@ -38,7 +93,9 @@ class TSX
 			if ($magic !== "ZXTape!\x1a") {
 				return false;
 			}
-			if ($this->majorVer!=1 || $this->minorVer!=21) return false;
+			if ($this->majorVer!=1 || $this->minorVer!=21) {
+				echo "Warning: Wrong TSX version ".$this->majorVer.".".$this->minorVer."\n";
+			}
 
 			//Read Blocks
 			while (strlen($bytes)>0) {
@@ -96,7 +153,7 @@ class TSX
 
 	public function getBytes()
 	{
-		$bytes = "ZXTape!\x1a\x01\x15";
+		$bytes = TSX::HEADER;
 		foreach ($this->blocks as $b) {
 			$bytes .= $b->getBytes();
 		}
@@ -108,14 +165,14 @@ class TSX
 		return count($this->blocks);
 	}
 
-	public function getBlockId($pos)
+	public function getBlockId($index)
 	{
-		return $this->blocks[$pos]->getId();
+		return $this->blocks[$index]->getId();
 	}
 
-	public function getBlock($pos)
+	public function getBlock($index)
 	{
-		return $this->blocks[$pos];
+		return $this->blocks[$index];
 	}
 
 	public function getLastBlock()
@@ -161,12 +218,12 @@ class TSX
 		//File info
 		$file = array();
 		$tmp = $this->getBytes();
-		$file['fileSize'] = strlen($tmp);
-		$file['blocks'] = $this->getNumBlocks();
-		$file['crc32'] = hash("crc32b", $tmp);
-		$file['md5'] = md5($tmp);
-		$file['sha1'] = sha1($tmp);
-		$info['file'] = $file;
+		$file[TSX::INFO_FILESIZE] = strlen($tmp);
+		$file[TSX::INFO_BLOCKS] = $this->getNumBlocks();
+		$file[TSX::INFO_CRC32] = hash("crc32b", $tmp);
+		$file[TSX::INFO_MD5] = md5($tmp);
+		$file[TSX::INFO_SHA1] = sha1($tmp);
+		$info[TSX::INFO_FILE] = $file;
 
 		//Labels
 		$pos = -1;
@@ -178,10 +235,14 @@ class TSX
 
 		//Data info (blocks: 10, 11, 14, 15, 18, ¿19?, 4B)
 		$data = array();
-		$data['blocks'] = 0;
+		$data[TSX::INFO_BLOCKS] = 0;
 		$tmp = "";
 		foreach ($this->blocks as $b) {
 			switch ($b->getId()) {
+				case 0x12:
+				case 0x13:
+					$data[TSX::INFO_BLOCKS]++;
+					break;
 				case 0x10:
 				case 0x11:
 				case 0x14:
@@ -189,25 +250,27 @@ class TSX
 				case 0x18:
 				case 0x19:
 				case 0x4B:
-					$data['blocks']++;
+					$data[TSX::INFO_BLOCKS]++;
 					$tmp .= $b->getData();
 					break;
 			}
 		}
-		$data['crc32'] = hash("crc32b", $tmp);
-		$data['md5'] = md5($tmp);
-		$data['sha1'] = sha1($tmp);
+		$data[TSX::INFO_CRC32] = hash("crc32b", $tmp);
+		$data[TSX::INFO_MD5] = md5($tmp);
+		$data[TSX::INFO_SHA1] = sha1($tmp);
 		$info['data'] = $data;
 
 		//Blocks
-		$blocks = array();
+		$info_blocks = array();
 		$pos = 0;
 		foreach ($this->blocks as $b) {
 			$tmp = $b->getInfo();
-			if ($tmp!="") $blocks[$pos] = $tmp;
+			if ($tmp!="") {
+				$info_blocks[$pos] = $tmp;
+			}
 			$pos++;
 		}
-		$info['blocks'] = $blocks;
+		$info[TSX::INFO_BLOCKS] = $info_blocks;
 
 		return $info;
 	}
@@ -217,8 +280,12 @@ class TSX
 // ============================================================================================
 // Generic Abstract Block class
 //
-abstract class BlockTSX
+abstract class BlockTSX implements IBlock
 {
+	const INFO_ID		= 'id';
+	const INFO_NAME		= 'name';
+	const INFO_DESC		= 'description';
+
 	protected $bytes = "";
 	protected $pattern = "";
 	protected $headSize = 0;
@@ -253,16 +320,45 @@ abstract class BlockTSX
 
 	public function getInfo()
 	{
-		$id = strtoupper(str_pad(dechex($this->getId()), 2, '0', STR_PAD_LEFT));
+		$_id = strtoupper(str_pad(dechex($this->getId()), 2, '0', STR_PAD_LEFT));
 		return array(
-			'id' => $id,
-			'name' => 'Block #'.$id
+			BlockTSX::INFO_ID 	=> $_id,
+			BlockTSX::INFO_NAME	=> 'Block #'.$_id
 		);
 	}
 
-	abstract protected function unpack($bytes = NULL);
+	protected function unpack($bytes = NULL) {
+		if ($bytes===NULL) {
+			$bytes = $this->bytes;
+		}
+	}
 
 	abstract protected function pack();
+}
+
+// ============================================================================================
+// Generic Abstract BlockData class
+//
+abstract class BlockDataTSX extends BlockTSX implements IBlockData
+{
+	const INFO_LENGTH	= 'bytesLength';
+	const INFO_CRC32	= 'crc32';
+
+	abstract public function pause($value=NULL);
+	abstract public function len();
+	abstract public function data($value=NULL);
+}
+
+// ============================================================================================
+// Generic Text Labels Block
+// 
+// Add new functions to BlockTSX for specialized text labels blocks
+
+abstract class BlockLabelTSX extends BlockTSX
+{
+	const INFO_LABEL = 'label';
+
+	abstract public function text($value=NULL);
 }
 
 // ============================================================================================
@@ -270,7 +366,7 @@ abstract class BlockTSX
 //	0x00 	- 	WORD 	    Pause after this block (ms.) {1000}
 //	0x02 	N 	WORD 	    Length of data that follow
 //	0x04 	- 	BYTE[N]     Data as in .TAP files
-class Block10 extends BlockTSX
+class Block10 extends BlockDataTSX
 {
 	protected $pattern = "Cid/vpause/vlen";
 	protected $pattern2 = "Cvv";
@@ -292,7 +388,7 @@ class Block10 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id, 
 			$this->pause, 
 			$this->len) = array_values(unpack($this->pattern, $bytes));
@@ -307,20 +403,24 @@ class Block10 extends BlockTSX
 		return $this->bytes;
 	}
 
-	protected function getChecksum($data) {
-		$checksum = 255;
-		for ($i=0; $i<strlen($data); $i++) {
+	protected function getChecksum($data)
+	{
+		$checksum = 0;
+		for ($i=0; $i<strlen($data)-1; $i++) {
 			$checksum ^= ord($data[$i]);
 		}
 		return $checksum;
 	}
 
-	public function getInfo() {
+	public function getInfo()
+	{
 		$data = $this->getData();
 		$info = parent::getInfo();
-		$info['description'] = 'Standard speed data block';
-		$info['bytesLength'] = strlen($data);
-		$info['crc32'] = hash("crc32b", $data);
+		$info[BlockTSX::INFO_DESC] = 'Standard speed data block';
+		$info[BlockTSX::INFO_LENGTH] = strlen($data);
+		$info['checksumByte'] = ord(substr($data, -1));
+		$info['checksum'] = $this->getChecksum($data);
+		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -337,7 +437,7 @@ class Block10 extends BlockTSX
 	public function len() {
 		return $this->len;
 	}
-	public function data($value=NULL, $addFlagAndChecksun=TRUE) {
+	public function data($value=NULL) {
 		if ($value===NULL) {
 			return $this->getData();
 		} else {
@@ -362,7 +462,7 @@ class Block10 extends BlockTSX
 //	0x0D	-	WORD		Pause after this block (ms.) {1000}
 //	0x0F	N	BYTE[3]		Length of data that follow
 //	0x12	-	BYTE[N]		Data as in .TAP files
-class Block11 extends BlockTSX
+class Block11 extends BlockDataTSX
 {
 	protected $pattern = "Cid/vpilot/vsync1/vsync2/vlen0/vlen1/vpulses/Clast/vpause/vlen16/Clen8";
 	protected $pattern2 = "CvvvvvvCvvC";
@@ -391,7 +491,7 @@ class Block11 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id, 
 			$this->pilotLen,
 			$this->syncLen1,
@@ -423,12 +523,23 @@ class Block11 extends BlockTSX
 		return $this->bytes;
 	}
 
-	public function getInfo() {
+	protected function getChecksum($data) {
+		$checksum = 0;
+		for ($i=0; $i<strlen($data)-1; $i++) {
+			$checksum ^= ord($data[$i]);
+		}
+		return $checksum;
+	}
+
+	public function getInfo()
+	{
 		$data = $this->getData();
 		$info = parent::getInfo();
-		$info['description'] = 'Turbo speed data block';
-		$info['bytesLength'] = strlen($data);
-		$info['crc32'] = hash("crc32b", $data);
+		$info[BlockTSX::INFO_DESC] = 'Turbo speed data block';
+		$info[BlockTSX::INFO_LENGTH] = strlen($data);
+		$info['checksumByte'] = ord(substr($data, -1));
+		$info['checksum'] = $this->getChecksum($data);
+		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -538,7 +649,7 @@ class Block12 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id, 
 			$this->pulseLen,
 			$this->pulseNum) = array_values(unpack($this->pattern, $bytes));
@@ -553,9 +664,10 @@ class Block12 extends BlockTSX
 		return $this->bytes;
 	}
 
-	public function getInfo() {
+	public function getInfo()
+	{
 		$info = parent::getInfo();
-		$info['description'] = 'Pure tone block';
+		$info[BlockTSX::INFO_DESC] = 'Pure tone block';
 		return $info;
 	}
 
@@ -602,7 +714,7 @@ class Block13 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id, 
 			$this->pulseNum) = array_values(unpack($this->pattern, $bytes));
 	}
@@ -615,9 +727,10 @@ class Block13 extends BlockTSX
 		return $this->bytes;
 	}
 
-	public function getInfo() {
+	public function getInfo()
+	{
 		$info = parent::getInfo();
-		$info['description'] = 'Sequence of pulses block';
+		$info[BlockTSX::INFO_DESC] = 'Sequence of pulses block';
 		return $info;
 	}
 
@@ -646,7 +759,7 @@ class Block13 extends BlockTSX
 //	0x05	-	WORD		Pause after this block (ms.)
 //	0x07	N	BYTE[3] 	Length of data that follow
 //	0x0A	-	BYTE[N]		Data as in .TAP files
-class Block14 extends BlockTSX
+class Block14 extends BlockDataTSX
 {
 	protected $pattern = "Cid/vlen0/vlen1/Clast/vpause/vlen16/Clen8";
 	protected $pattern2 = "CvvCvvC";
@@ -671,7 +784,7 @@ class Block14 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id, 
 			$this->zeroLen,
 			$this->oneLen,
@@ -695,12 +808,13 @@ class Block14 extends BlockTSX
 		return $this->bytes;
 	}
 
-	public function getInfo() {
+	public function getInfo()
+	{
 		$data = $this->getData();
 		$info = parent::getInfo();
-		$info['description'] = 'Pure data Block';
-		$info['bytesLength'] = strlen($data);
-		$info['crc32'] = hash("crc32b", $data);
+		$info[BlockTSX::INFO_DESC] = 'Pure data Block';
+		$info[BlockTSX::INFO_LENGTH] = strlen($data);
+		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -761,7 +875,7 @@ class Block14 extends BlockTSX
 //	0x05	N	BYTE[3]		Length of samples' data
 //	0x08	-	BYTE[N]		Samples data. Each bit represents a state on the EAR port (i.e. one sample).
 //							MSb is played first.
-class Block15 extends BlockTSX
+class Block15 extends BlockDataTSX
 {
 	protected $pattern = "Cid/vsamplelen/vpause/Clast/vlen16/Clen8";
 	protected $pattern2 = "CvvCvC";
@@ -785,7 +899,7 @@ class Block15 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id, 
 			$this->sampleLen,
 			$this->pause, 
@@ -807,13 +921,14 @@ class Block15 extends BlockTSX
 		return $this->bytes;
 	}
 
-	public function getInfo() {
+	public function getInfo()
+	{
 		$data = $this->getData();
 		$info = parent::getInfo();
-		$info['description'] = 'Direct Recording';
+		$info[BlockTSX::INFO_DESC] = 'Direct Recording';
 		$info['tStatesPerSample'] = $this->sampleLen;
-		$info['bytesLength'] = strlen($data);
-		$info['crc32'] = hash("crc32b", $data);
+		$info[BlockTSX::INFO_LENGTH] = strlen($data);
+		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -892,7 +1007,7 @@ class Block18 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id, 
 			$this->blockLen,
 			$this->pause, 
@@ -916,12 +1031,13 @@ class Block18 extends BlockTSX
 		return $this->bytes;
 	}
 
-	public function getInfo() {
+	public function getInfo()
+	{
 		$data = $this->getData();
 		$info = parent::getInfo();
-		$info['description'] = 'Direct Recording';
-		$info['bytesLength'] = strlen($data);
-		$info['crc32'] = hash("crc32b", $data);
+		$info[BlockTSX::INFO_DESC] = 'Direct Recording';
+		$info[BlockTSX::INFO_LENGTH] = strlen($data);
+		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -1019,14 +1135,14 @@ class Block20 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id, 
 			$this->pause) = array_values(unpack($this->pattern, $bytes));
 	}
 
 	public function getInfo() {
 		$info = parent::getInfo();
-		$info['description'] = 'Pause block';
+		$info[BlockTSX::INFO_DESC] = 'Pause block';
 		return $info;
 	}
 
@@ -1052,7 +1168,7 @@ class Block20 extends BlockTSX
 // Block #21 - Group start
 //	0x00	L	BYTE		Length of the group name string
 //	0x01	-	CHAR[L]		Group name in ASCII format (please keep it under 30 characters long)
-class Block21 extends BlockTSX
+class Block21 extends BlockLabelTSX
 {
 	protected $pattern = "Cid/Clen";
 	protected $pattern2 = "CC";
@@ -1073,7 +1189,7 @@ class Block21 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id, 
 			$this->len) = array_values(unpack($this->pattern, $bytes));
 	}
@@ -1088,12 +1204,12 @@ class Block21 extends BlockTSX
 
 	public function getInfo() {
 		$info = parent::getInfo();
-		$info['description'] = 'Group start block';
-		$info['label'] = $this->getData();
+		$info[BlockTSX::INFO_DESC] = 'Group start block';
+		$info[BlockLabelTSX::INFO_LABEL] = $this->getData();
 		return $info;
 	}
 
-	public function name($value=NULL) {
+	public function text($value=NULL) {
 		if ($value===NULL) {
 			return $this->getData();
 		} else {
@@ -1125,7 +1241,7 @@ class Block22 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id) = array_values(unpack($this->pattern, $bytes));
 	}
 
@@ -1138,7 +1254,7 @@ class Block22 extends BlockTSX
 
 	public function getInfo() {
 		$info = parent::getInfo();
-		$info['description'] = 'Group end block';
+		$info[BlockTSX::INFO_DESC] = 'Group end block';
 		return $info;
 	}
 }
@@ -1181,7 +1297,7 @@ class Block22 extends BlockTSX
 // Block #30 - Text description
 //	0x00	N	BYTE		Length of the text description
 //	0x01	-	CHAR[N]		Text description in ASCII format
-class Block30 extends BlockTSX
+class Block30 extends BlockLabelTSX
 {
 	protected $pattern = "Cid/Clen";
 	protected $pattern2 = "CC";
@@ -1202,7 +1318,7 @@ class Block30 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id, 
 			$this->len) = array_values(unpack($this->pattern, $bytes));
 	}
@@ -1217,8 +1333,8 @@ class Block30 extends BlockTSX
 
 	public function getInfo() {
 		$info = parent::getInfo();
-		$info['description'] = 'Text description block';
-		$info['label'] = $this->getData();
+		$info[BlockTSX::INFO_DESC] = 'Text description block';
+		$info[BlockLabelTSX::INFO_LABEL] = $this->getData();
 		return $info;
 	}
 
@@ -1238,7 +1354,7 @@ class Block30 extends BlockTSX
 //	0x00	-	BYTE		Time (in seconds) for which the message should be displayed
 //	0x01	N	BYTE		Length of the text message
 //	0x02	-	CHAR[N]		Message that should be displayed in ASCII format
-class Block31 extends BlockTSX
+class Block31 extends BlockLabelTSX
 {
 	protected $pattern = "Cid/Ctime/Clen";
 	protected $pattern2 = "CCC";
@@ -1260,7 +1376,7 @@ class Block31 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id,
 			$this->time, 
 			$this->len) = array_values(unpack($this->pattern, $bytes));
@@ -1277,8 +1393,8 @@ class Block31 extends BlockTSX
 
 	public function getInfo() {
 		$info = parent::getInfo();
-		$info['description'] = 'Message block';
-		$info['label'] = $this->getData();
+		$info[BlockTSX::INFO_DESC] = 'Message block';
+		$info[BlockLabelTSX::INFO_LABEL] = $this->getData();
 		return $info;
 	}
 
@@ -1353,7 +1469,7 @@ class Block32 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id,
 			$this->len, 
 			$this->numInfo) = array_values(unpack($this->pattern, $bytes));
@@ -1371,9 +1487,9 @@ class Block32 extends BlockTSX
 	public function getInfo() {
 		$data = $this->getData();
 		$info = parent::getInfo();
-		$info['description'] = 'Archive info block';
+		$info[BlockTSX::INFO_DESC] = 'Archive info block';
 		$info['archive'] = $this->archive;
-		$info['crc32'] = hash("crc32b", $data);
+		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -1447,7 +1563,7 @@ class Block35 extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id,
 			$this->key, 
 			$this->len) = array_values(unpack($this->pattern, $bytes));
@@ -1464,7 +1580,7 @@ class Block35 extends BlockTSX
 
 	public function getInfo() {
 		$info = parent::getInfo();
-		$info['description'] = 'Custom info block';
+		$info[BlockTSX::INFO_DESC] = 'Custom info block';
 		$info['key'] = $this->key;
 		$info['value'] = $this->getData();
 		return $info;
@@ -1512,8 +1628,14 @@ class Block35 extends BlockTSX
 //							Bit 1: Reserved
 //							Bit 0: Endianless (0 for LSb first, 1 for MSb first) {0}
 //	0x10	-	BYTE[N]		Data stream
-class Block4B extends BlockTSX
+class Block4B extends BlockDataTSX
 {
+	private const HEADERS = array(
+		"\D3\D3\D3\D3\D3\D3\D3\D3\D3\D3" => "BASIC",
+		"\EA\EA\EA\EA\EA\EA\EA\EA\EA\EA" => "ASCII",
+		"\D0\D0\D0\D0\D0\D0\D0\D0\D0\D0" => "Binary"
+	);
+
 	protected $pattern = "Cid/Vlen/vpause/vpilot/vpulses/vlen0/vlen1/CbitCfg/CbyteCfg";
 	protected $pattern2 = "CVvvvvvCC";
 	protected $headSize = 0x11;
@@ -1540,7 +1662,7 @@ class Block4B extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id,
 			$this->len, 
 			$this->pause, 
@@ -1571,38 +1693,31 @@ class Block4B extends BlockTSX
 		global $MSXcharsetJP;
 		$data = $this->getData();
 		$info = parent::getInfo();
-		if ($this->bitCfg==0x24 && $this->byteCfg==0x54 && $this->pilotPulses>0)
-			$info['description'] = 'MSX standard block';
-		else
-			$info['description'] = 'KCS custom block';
-		$info['bytesLength'] = strlen($data);
+		if ($this->bitCfg==0x24 && $this->byteCfg==0x54 && $this->pilotPulses>0) {
+			$info[BlockTSX::INFO_DESC] = 'MSX standard block';
+		} else {
+			$info[BlockTSX::INFO_DESC] = 'KCS custom block';
+		}
+		$info[BlockTSX::INFO_LENGTH] = strlen($data);
 		if (strlen($data)==16) {
-			$first10 = substr($data, 0, 10);
-			if ($first10==str_repeat(chr(0xD3), 10)) {
-				$info['header'] = 'BASIC';
-			} else
-			if ($first10==str_repeat(chr(0xEA), 10)) {
-				$info['header'] = 'ASCII';
-			} else
-			if ($first10==str_repeat(chr(0xD0), 10)) {
-				$info['header'] = 'Binary';
-			}
-			if (isset($info['header'])) {
+			$info['header'] = Block4B::HEADERS[substr($data, 0, 10)];
+			if (isset($info[Block4B::HEADER])) {
 				$cadIn = substr($data, 10);
 				$cadOut = '';
 				for ($i=0; $i<strlen($cadIn); $i++) {
 					$num = ord($cadIn[$i]);
-					if (isset($MSXcharsetJP[$num])) 
+					if (isset($MSXcharsetJP[$num])) {
 						$cadOut .= $MSXcharsetJP[$num];
-					elseif ($num<32 || $num>=127)
+					} elseif ($num<32 || $num>=127) {
 						$cadOut .= '?';
-					else
+					} else {
 						$cadOut .= chr($num);
+					}
 				}
 				$info['name'] = $cadOut;
 			}
 		}
-		$info['crc32'] = hash("crc32b", $data);
+		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -1702,7 +1817,7 @@ class Block5A extends BlockTSX
 
 	protected function unpack($bytes = NULL)
 	{
-		if ($bytes===NULL) $bytes = $this->bytes;
+		parent::unpack($bytes);
 		list($this->id) = array_values(unpack($this->pattern, $bytes));
 	}
 
@@ -1716,7 +1831,7 @@ class Block5A extends BlockTSX
 	public function getInfo() {
 		$data = $this->getData();
 		$info = parent::getInfo();
-		$info['description'] = 'Glue block';
+		$info[BlockTSX::INFO_DESC] = 'Glue block';
 		return $info;
 	}
 }

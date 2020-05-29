@@ -5,7 +5,9 @@ This folder contains:
   * **pzx.php**: PHP class to read/write/manage _PZX_ files.
   * **cas.php**: PHP class to read/write/manage _MSX CAS_ files.
   * **uef.php**: PHP class to read/write/manage _UEF_ files.
+  * **wav.php**: PHP class to write _WAV_ files.
   * **cas2tsx.php**: PHP program to convert _MSX CAS_ files to _TSX_ format.
+  * **tsx2wav.php**: PHP program to convert _MSX TSX_ files to _WAV_ format.
   * **svi2tsx.php**: PHP program to convert _SVI CAS_ files to _TSX_ format.
   * **drg2tsx.php**: PHP program to convert _DRAGON/CoCo CAS_ files to _TSX_ format.
   * **uef2tsx.php**: PHP program to convert _UEF_ files to _TSX_ format (Experimental).
@@ -15,6 +17,8 @@ This folder contains:
 ## Tools syntax:
 ```
 $> php cas2tsx.php <filename.CAS> <filename.TSX>
+
+$> php tsx2wav.php <filename.TSX> <filename.WAV>
 
 $> php svi2tsx.php <filename.CAS> <filename.TSX>
 

@@ -112,7 +112,7 @@
 
 		$data = $b->data();
 		for ($i=0; $i<$b->pulseNum(); $i++) {
-			$wav->writePulse($wav->tstates2bytes(ord($data[i])));
+			$wav->writePulse($wav->tstates2bytes(ord($data[$i])));
 		}
 	}
 

@@ -1,12 +1,43 @@
 <?php
 
 // ============================================================================================
+// Interface CAS Class
+
+interface ICAS {
+	public function clear();					// Initialize the CAS object
+	public function loadFromFile($filename);	// Initialize and load a CAS from file
+	public function saveToFile($filename);		// Save the current CAS to a file
+	public function getBytes();					// Obtain a raw binary string of the CAS
+	public function getNumBlocks();				// Get the blocks count
+	public function getBlock($index);			// Get the Block at a position
+	public function getLastBlock();				// Get the last Block
+	public function addBlock($newBlock);		// Add a block at the end of the TSX
+	public function insertBlock($index, $newBlock);	// Insert a block in a position of the TSX
+	public function deleteBlock($index);		// Deletes the block at a position
+	public function getInfo();					// Get an object with a full TSX/Blocks info
+}
+
+// ============================================================================================
+// Interface Generic Block
+
+interface IBlockCAS {
+	public function getSize();				// Get the full block length (header included)
+	public function getData();				// Get the raw data even in no-data blocks
+	public function getInfo();				// Get an object with info about the block
+	public function data($value=NULL);		// Get/Set raw data
+	public function isASCIIHeader();		// Return if this block is a ASCII header
+	public function isBasicHeader();		// Return if this block is a BASIC header
+	public function isBinaryHeader();		// Return if this block is a BINARY header
+}
+
+// ============================================================================================
 // CAS class
 //
 // (2017.10.31) v1.0 First version
+// (2020.09.07) v1.1 Revision. Interfaces added
 //
 
-class CAS
+class CAS implements ICAS
 {
 	const HEADER = "\x1F\xA6\xDE\xBA\xCC\x13\x7D\x74";
 
@@ -16,8 +47,8 @@ class CAS
 	public function __construct($filename = NULL)
 	{
 		$this->clear();
-		if ($filename!==NULL) {
-			$this->loadFromFile($filename);
+		if ($filename!==NULL && !$this->loadFromFile($filename)) {
+			clear();
 		}
 	}
 
@@ -127,14 +158,34 @@ class CAS
 	}
 }
 
-class BlockCAS
+class BlockCAS implements IBlockCAS
 {
 	const MSX_ASCII_HEADER  = "\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA\xEA";
 	const MSX_BIN_HEADER    = "\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0\xD0";
 	const MSX_BASIC_HEADER  = "\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3\xD3";
 
-	private $header;
-	private $data;
+	const INFO_LENGTH	= "bytesLength";
+	const INFO_CRC32	= "crc32";
+
+
+	private $data = "";
+
+	public function getSize() {
+		return strlen($this->data);
+	}
+
+	public function getData() {
+		return $this->data;
+	}
+
+	public function getInfo() {
+		$info = array();
+		$info[BlockCAS::INFO_LENGTH] = strlen($this->data);
+		$info[BlockCAS::INFO_CRC32] = hash("crc32b", $this->data);
+		$info['md5'] = md5($this->data);
+		$info['sha1'] = sha1($this->data);
+		return $info;
+	}
 
 	public function data($value=NULL)
 	{
@@ -145,18 +196,14 @@ class BlockCAS
 		}
 	}
 
-	public function getInfo() {
-		$info = array();
-		$info['bytesLength'] = strlen($this->data);
-		$info['crc32'] = hash("crc32b", $this->data);
-		$info['md5'] = md5($this->data);
-		$info['sha1'] = sha1($this->data);
-		return $info;
-	}
-
 	public function isASCIIHeader()
 	{
 		return strlen($this->data)==16 && substr_compare($this->data, self::MSX_ASCII_HEADER, 10)===0;
+	}
+
+	public function isBasicHeader()
+	{
+		return strlen($this->data)==16 && substr_compare($this->data, self::MSX_BASIC_HEADER, 10)===0;
 	}
 
 	public function isBinaryHeader()
@@ -164,10 +211,6 @@ class BlockCAS
 		return strlen($this->data)==16 && substr_compare($this->data, self::MSX_BIN_HEADER, 10)===0;
 	}
 
-	public function isBasicHeader()
-	{
-		return strlen($this->data)==16 && substr_compare($this->data, self::MSX_BASIC_HEADER, 10)===0;
-	}
 }
 	
 ?>

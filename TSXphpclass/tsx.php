@@ -4,12 +4,11 @@
 // ============================================================================================
 // Interface TSX Class
 
-interface ITSX
-{
+interface ITSX {
 	public function clear();					// Initialize the TSX object
 	public function loadFromFile($filename);	// Initialize and load a TSX from file
 	public function saveToFile($filename);		// Save the current TSX to a file
-	public function getBytes();					// Obtain a raw binery string of the TSX
+	public function getBytes();					// Obtain a raw binary string of the TSX
 	public function getNumBlocks();				// Get the blocks count
 	public function getBlockId($index);			// Get the ID from a Block at a position
 	public function getBlock($index);			// Get the Block at a position
@@ -24,8 +23,7 @@ interface ITSX
 // ============================================================================================
 // Interface Generic Block
 
-interface IBlock
-{
+interface IBlock {
 	public function getId();				// Get the block ID
 	public function getSize();				// Get the full block length (header included)
 	public function getHeadSize();			// Get the header size
@@ -39,8 +37,7 @@ interface IBlock
 // 
 // Add new functions to IBlock for specialized data blocks
 
-interface IBlockData extends IBlock
-{
+interface IBlockData extends IBlock {
 	public function pause($value=NULL);		// Get/Set pause in millis
 	public function len();					// Get/Set length of block data (without header)
 	public function data($value=NULL);		// Get/Set raw data
@@ -70,8 +67,8 @@ class TSX implements ITSX
 	public function __construct($filename=NULL)
 	{
 		$this->clear();
-		if ($filename!==NULL) {
-			$this->loadFromFile($filename);
+		if ($filename!==NULL && !$this->loadFromFile($filename)) {
+			clear();
 		}
 	}
 
@@ -239,10 +236,6 @@ class TSX implements ITSX
 		$tmp = "";
 		foreach ($this->blocks as $b) {
 			switch ($b->getId()) {
-				case 0x12:
-				case 0x13:
-					$data[TSX::INFO_BLOCKS]++;
-					break;
 				case 0x10:
 				case 0x11:
 				case 0x14:
@@ -354,8 +347,7 @@ abstract class BlockDataTSX extends BlockTSX implements IBlockData
 // 
 // Add new functions to BlockTSX for specialized text labels blocks
 
-abstract class BlockLabelTSX extends BlockTSX
-{
+abstract class BlockLabelTSX extends BlockTSX {
 	const INFO_LABEL = 'label';
 
 	abstract public function text($value=NULL);
@@ -417,10 +409,10 @@ class Block10 extends BlockDataTSX
 		$data = $this->getData();
 		$info = parent::getInfo();
 		$info[BlockTSX::INFO_DESC] = 'Standard speed data block';
-		$info[BlockTSX::INFO_LENGTH] = strlen($data);
+		$info[BlockDataTSX::INFO_LENGTH] = strlen($data);
 		$info['checksumByte'] = ord(substr($data, -1));
 		$info['checksum'] = $this->getChecksum($data);
-		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
+		$info[BlockDataTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -536,10 +528,10 @@ class Block11 extends BlockDataTSX
 		$data = $this->getData();
 		$info = parent::getInfo();
 		$info[BlockTSX::INFO_DESC] = 'Turbo speed data block';
-		$info[BlockTSX::INFO_LENGTH] = strlen($data);
+		$info[BlockDataTSX::INFO_LENGTH] = strlen($data);
 		$info['checksumByte'] = ord(substr($data, -1));
 		$info['checksum'] = $this->getChecksum($data);
-		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
+		$info[BlockDataTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -813,8 +805,8 @@ class Block14 extends BlockDataTSX
 		$data = $this->getData();
 		$info = parent::getInfo();
 		$info[BlockTSX::INFO_DESC] = 'Pure data Block';
-		$info[BlockTSX::INFO_LENGTH] = strlen($data);
-		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
+		$info[BlockDataTSX::INFO_LENGTH] = strlen($data);
+		$info[BlockDataTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -927,8 +919,8 @@ class Block15 extends BlockDataTSX
 		$info = parent::getInfo();
 		$info[BlockTSX::INFO_DESC] = 'Direct Recording';
 		$info['tStatesPerSample'] = $this->sampleLen;
-		$info[BlockTSX::INFO_LENGTH] = strlen($data);
-		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
+		$info[BlockDataTSX::INFO_LENGTH] = strlen($data);
+		$info[BlockDataTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -1036,8 +1028,8 @@ class Block18 extends BlockTSX
 		$data = $this->getData();
 		$info = parent::getInfo();
 		$info[BlockTSX::INFO_DESC] = 'Direct Recording';
-		$info[BlockTSX::INFO_LENGTH] = strlen($data);
-		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
+		$info[BlockDataTSX::INFO_LENGTH] = strlen($data);
+		$info[BlockDataTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -1489,7 +1481,7 @@ class Block32 extends BlockTSX
 		$info = parent::getInfo();
 		$info[BlockTSX::INFO_DESC] = 'Archive info block';
 		$info['archive'] = $this->archive;
-		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
+		$info[BlockDataTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -1636,6 +1628,8 @@ class Block4B extends BlockDataTSX
 		"\D0\D0\D0\D0\D0\D0\D0\D0\D0\D0" => "Binary"
 	);
 
+	const INFO_HEADER		= 'header';
+
 	protected $pattern = "Cid/Vlen/vpause/vpilot/vpulses/vlen0/vlen1/CbitCfg/CbyteCfg";
 	protected $pattern2 = "CVvvvvvCC";
 	protected $headSize = 0x11;
@@ -1698,26 +1692,27 @@ class Block4B extends BlockDataTSX
 		} else {
 			$info[BlockTSX::INFO_DESC] = 'KCS custom block';
 		}
-		$info[BlockTSX::INFO_LENGTH] = strlen($data);
+		$info[BlockDataTSX::INFO_LENGTH] = strlen($data);
 		if (strlen($data)==16) {
-			$info['header'] = Block4B::HEADERS[substr($data, 0, 10)];
-			if (isset($info[Block4B::HEADER])) {
+			@$headerType = Block4B::HEADERS[substr($data, 0, 10)];
+			if (isset($headerType)) {
+				$info[Block4B::INFO_HEADER] = $headerType;
 				$cadIn = substr($data, 10);
 				$cadOut = '';
 				for ($i=0; $i<strlen($cadIn); $i++) {
 					$num = ord($cadIn[$i]);
 					if (isset($MSXcharsetJP[$num])) {
-						$cadOut .= $MSXcharsetJP[$num];
+						$cadOut .= '&#x'.substr($MSXcharsetJP[$num], 3, 4).';';
 					} elseif ($num<32 || $num>=127) {
 						$cadOut .= '?';
 					} else {
 						$cadOut .= chr($num);
 					}
 				}
-				$info['name'] = $cadOut;
+				$info[BlockTSX::INFO_NAME] = $cadOut;
 			}
 		}
-		$info[BlockTSX::INFO_CRC32] = hash("crc32b", $data);
+		$info[BlockDataTSX::INFO_CRC32] = hash("crc32b", $data);
 		$info['md5'] = md5($data);
 		$info['sha1'] = sha1($data);
 		return $info;
@@ -1725,7 +1720,7 @@ class Block4B extends BlockDataTSX
 
 	public function len()
 	{
-		return $this->len;
+		return strlen($this->data());
 	}
 	public function pause($value=NULL) {
 		if ($value===NULL) {
@@ -1829,7 +1824,6 @@ class Block5A extends BlockTSX
 	}
 
 	public function getInfo() {
-		$data = $this->getData();
 		$info = parent::getInfo();
 		$info[BlockTSX::INFO_DESC] = 'Glue block';
 		return $info;

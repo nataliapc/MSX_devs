@@ -10,6 +10,9 @@
 #include <sys/stat.h>
 #include "msxboot.h"
 
+#ifdef WIN32
+#   define localtime_r(T,Tm) (localtime_s(Tm,T) ? NULL : Tm)
+#endif
 
 //Format types
 #define FORMAT_360		360
